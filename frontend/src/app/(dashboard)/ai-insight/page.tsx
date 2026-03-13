@@ -1,8 +1,10 @@
 "use client";
 
 import Topbar from "@/components/layout/Topbar";
-import { Brain, Send, Sparkles, TrendingUp, Package, DollarSign, Users, RefreshCw, Zap } from "lucide-react";
+import { Brain, Send, Sparkles, TrendingUp, Package, DollarSign, Users, RefreshCw, Zap, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { aiApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 
 interface Message {
@@ -19,61 +21,6 @@ const quickPrompts = [
   "Rekomendasikan supplier terbaik untuk reorder",
   "Apakah perusahaan sehat secara finansial?",
   "Karyawan mana yang perlu perhatian khusus?",
-];
-
-const aiInsightCards = [
-  {
-    icon: Package,
-    title: "Inventory Alert",
-    color: "amber",
-    iconBg: "bg-amber-500/15",
-    iconColor: "text-amber-400",
-    borderColor: "border-amber-500/20",
-    items: [
-      { label: "Laptop ASUS A14", value: "Stok kritis: 3 unit", sub: "Estimasi habis: 5 hari" },
-      { label: "Kabel HDMI 2m", value: "Stok kritis: 6 unit", sub: "Reorder: 100 unit" },
-    ],
-    suggestion: "Segera lakukan reorder untuk 2 produk kritis sebelum kehabisan stok.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Sales Insight",
-    color: "indigo",
-    iconBg: "bg-indigo-500/15",
-    iconColor: "text-indigo-400",
-    borderColor: "border-indigo-500/20",
-    items: [
-      { label: "Revenue Bulan Ini", value: formatCurrency(847_500_000), sub: "+12.4% dari bulan lalu" },
-      { label: "Order Baru", value: "342 order", sub: "+8.1% growth rate" },
-    ],
-    suggestion: "Tren positif! Fokuskan pada segmen Elektronik yang tumbuh 18% bulan ini.",
-  },
-  {
-    icon: DollarSign,
-    title: "Finance Health",
-    color: "emerald",
-    iconBg: "bg-emerald-500/15",
-    iconColor: "text-emerald-400",
-    borderColor: "border-emerald-500/20",
-    items: [
-      { label: "Profit Margin", value: "63.2%", sub: "+3.1% dari target" },
-      { label: "Cash Position", value: formatCurrency(2_400_000_000), sub: "Likuiditas sangat sehat" },
-    ],
-    suggestion: "Kondisi keuangan sangat baik. Pertimbangkan ekspansi atau investasi aset baru.",
-  },
-  {
-    icon: Users,
-    title: "HR Analytics",
-    color: "violet",
-    iconBg: "bg-violet-500/15",
-    iconColor: "text-violet-400",
-    borderColor: "border-violet-500/20",
-    items: [
-      { label: "Tingkat Kehadiran", value: "94.2%", sub: "Di atas standar industri" },
-      { label: "Performa Rata-rata", value: "87.4 / 100", sub: "Excellent: 32% karyawan" },
-    ],
-    suggestion: "4 karyawan perlu program coaching. Turnover risk terdeteksi di divisi Support.",
-  },
 ];
 
 const initialMessages: Message[] = [
@@ -95,11 +42,53 @@ export default function AIInsightPage() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const { data: inventoryAnalysis, isLoading: loadingInv } = useQuery({
+    queryKey: ["ai-inventory", refreshKey],
+    queryFn: () => aiApi.inventoryAnalysis().then((r) => r.data),
+    retry: 1,
+  });
+
+  const { data: salesAnalysis, isLoading: loadingSales } = useQuery({
+    queryKey: ["ai-sales", refreshKey],
+    queryFn: () => aiApi.salesAnalysis(30).then((r) => r.data),
+    retry: 1,
+  });
+
+  const { data: financeAnalysis, isLoading: loadingFin } = useQuery({
+    queryKey: ["ai-finance", refreshKey],
+    queryFn: () => aiApi.financeAnalysis().then((r) => r.data),
+    retry: 1,
+  });
+
+  const { data: healthCheck, isLoading: loadingHealth } = useQuery({
+    queryKey: ["ai-health", refreshKey],
+    queryFn: () => aiApi.healthCheck().then((r) => r.data),
+    retry: 1,
+  });
+
+  const inventoryLowStockCount = inventoryAnalysis?.low_stock_count ?? 0;
+  const inventoryLowStockProducts = Array.isArray(inventoryAnalysis?.products)
+    ? inventoryAnalysis.products
+    : [];
+  const inventoryOutOfStockCount = inventoryLowStockProducts.filter(
+    (p: any) => Number(p.stock_quantity) <= 0
+  ).length;
+
+  const salesTotalOrders = Number(salesAnalysis?.total_orders ?? 0);
+  const salesTotalRevenue = Number(salesAnalysis?.total_revenue ?? 0);
+  const salesAvgOrderValue = salesTotalOrders > 0 ? salesTotalRevenue / salesTotalOrders : 0;
+
+  const financeIncome = Number(financeAnalysis?.income ?? 0);
+  const financeExpense = Number(financeAnalysis?.expense ?? 0);
+  const financeProfit = Number(financeAnalysis?.profit ?? 0);
+  const financeProfitMargin = financeIncome > 0 ? (financeProfit / financeIncome) * 100 : 0;
 
   const sendMessage = async (text?: string) => {
     const msg = text ?? input.trim();
@@ -110,25 +99,128 @@ export default function AIInsightPage() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    // Simulate AI response (replace with real API call)
-    await new Promise((r) => setTimeout(r, 1200 + Math.random() * 800));
-
-    const mockResponses: Record<string, string> = {
-      "kondisi keuangan": "**Analisis Keuangan Bulan Ini:**\n\nRevenue naik **12.4%** menjadi Rp 847.5 juta\nExpense naik **5.6%** menjadi Rp 312 juta\nProfit margin **63.2%** — di atas target 60%\n\n**Rekomendasi:**\n- Cashflow sangat sehat, cocok untuk ekspansi\n- Pertimbangkan investasi aset tetap\n- Monitor biaya operasional yang naik 8%",
-      "habis stoknya": "**Produk yang Berpotensi Habis:**\n\n🔴 **Laptop ASUS A14** — 3 unit tersisa, estimasi habis 5 hari\n🔴 **Kabel HDMI 2m** — 6 unit tersisa, estimasi habis 6 hari\n🟡 **Mouse Wireless Pro** — 8 unit, estimasi habis 12 hari\n🟡 **Filter Oli Premium** — 12 unit, estimasi habis 15 hari\n\n**Rekomendasi Reorder:**\n- Laptop ASUS: order 50 unit dari Distributor A\n- Kabel HDMI: order 100 unit dari Supplier C",
-      "performa sales": "**Analisis Sales 30 Hari Terakhir:**\n\nTotal Order: **342** (+8.1%)\nRevenue: **Rp 847.5 juta** (+12.4%)\nRata-rata nilai order: **Rp 2.47 juta**\n\n**Top Produk:**\n1. Laptop ASUS A14 — 48 unit\n2. Monitor 24\" — 35 unit\n3. Keyboard Mechanical — 29 unit\n\n**Prediksi bulan depan:** Revenue Rp 920-950 juta (+8-12%)",
-      "perusahaan sehat": "**Health Check Perusahaan:**\n\n✅ **Keuangan:** SEHAT — Profit margin 63.2%\n✅ **Inventory:** WASPADA — 4 produk kritis\n✅ **Sales:** SEHAT — Growth +12.4%\n⚠️ **HR:** PERHATIAN — Turnover risk di divisi Support\n\n**Skor Keseluruhan: 82/100 — BAIK**\n\nPerusahaan dalam kondisi sehat. Fokus perbaikan pada manajemen stok dan retensi karyawan.",
-    };
-
-    let aiResponse = "Saya telah menganalisis data ERP Anda. Berdasarkan data terkini, semua indikator bisnis dalam kondisi normal. Apakah ada hal spesifik yang ingin Anda ketahui lebih detail?";
-    for (const [key, val] of Object.entries(mockResponses)) {
-      if (msg.toLowerCase().includes(key)) { aiResponse = val; break; }
+    try {
+      const { data } = await aiApi.chat(msg);
+      const aiMsg: Message = {
+        id: Date.now() + 1,
+        role: "ai",
+        content: data.response || data.message || "Maaf, saya tidak dapat memproses permintaan Anda saat ini.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.status === 503
+          ? "Layanan AI sedang tidak tersedia. Pastikan API key OpenAI sudah dikonfigurasi."
+          : "Terjadi kesalahan saat menghubungi AI. Silakan coba lagi.";
+      const aiMsg: Message = {
+        id: Date.now() + 1,
+        role: "ai",
+        content: errorMsg,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
+      setLoading(false);
     }
-
-    const aiMsg: Message = { id: Date.now() + 1, role: "ai", content: aiResponse, timestamp: new Date() };
-    setMessages((prev) => [...prev, aiMsg]);
-    setLoading(false);
   };
+
+  const insightCards = [
+    {
+      icon: Package,
+      title: "Inventory Alert",
+      color: "amber",
+      iconBg: "bg-amber-500/15",
+      iconColor: "text-amber-400",
+      isLoading: loadingInv,
+      items: inventoryAnalysis
+        ? [
+            {
+              label: "Status Stok",
+              value: `${inventoryLowStockCount} produk stok rendah`,
+              sub: `${inventoryOutOfStockCount} produk habis`,
+            },
+            {
+              label: "Produk Terpantau",
+              value: `${inventoryLowStockProducts.length} produk`,
+              sub: inventoryAnalysis.status === "warning" ? "Perlu tindakan reorder" : "Kondisi inventori normal",
+            },
+          ]
+        : [
+            { label: "Memuat data...", value: "—", sub: "" },
+          ],
+      suggestion: inventoryAnalysis?.ai_insight || inventoryAnalysis?.message || "Memuat analisis inventori...",
+    },
+    {
+      icon: TrendingUp,
+      title: "Sales Insight",
+      color: "indigo",
+      iconBg: "bg-indigo-500/15",
+      iconColor: "text-indigo-400",
+      isLoading: loadingSales,
+      items: salesAnalysis
+        ? [
+            {
+              label: "Revenue Periode Ini",
+              value: formatCurrency(salesTotalRevenue),
+              sub: `${salesTotalOrders} total order`,
+            },
+            {
+              label: "Avg Nilai Order",
+              value: formatCurrency(salesAvgOrderValue),
+              sub: `Periode ${salesAnalysis.period_days ?? 30} hari`,
+            },
+          ]
+        : [{ label: "Memuat data...", value: "—", sub: "" }],
+      suggestion: salesAnalysis?.ai_insight || "Memuat analisis penjualan...",
+    },
+    {
+      icon: DollarSign,
+      title: "Finance Health",
+      color: "emerald",
+      iconBg: "bg-emerald-500/15",
+      iconColor: "text-emerald-400",
+      isLoading: loadingFin,
+      items: financeAnalysis
+        ? [
+            {
+              label: "Profit Margin",
+              value: `${financeProfitMargin.toFixed(1)}%`,
+              sub: `Income: ${formatCurrency(financeIncome)}`,
+            },
+            {
+              label: "Net Profit",
+              value: formatCurrency(financeProfit),
+              sub: `Expense: ${formatCurrency(financeExpense)}`,
+            },
+          ]
+        : [{ label: "Memuat data...", value: "—", sub: "" }],
+      suggestion: financeAnalysis?.ai_insight || "Memuat analisis keuangan...",
+    },
+    {
+      icon: Users,
+      title: "HR Analytics",
+      color: "violet",
+      iconBg: "bg-violet-500/15",
+      iconColor: "text-violet-400",
+      isLoading: loadingHealth,
+      items: healthCheck
+        ? [
+            {
+              label: "Ringkasan Kondisi",
+              value: `${healthCheck.sales?.total_orders ?? 0} order / 30 hari`,
+              sub: `${healthCheck.inventory?.low_stock_count ?? 0} produk stok rendah`,
+            },
+            {
+              label: "Profit Bulan Ini",
+              value: formatCurrency(Number(healthCheck.finance?.profit ?? 0)),
+              sub: `Income ${formatCurrency(Number(healthCheck.finance?.income ?? 0))} - Expense ${formatCurrency(Number(healthCheck.finance?.expense ?? 0))}`,
+            },
+          ]
+        : [{ label: "Memuat data...", value: "—", sub: "" }],
+      suggestion: healthCheck?.overall_insight || "Memuat analisis kesehatan perusahaan...",
+    },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -142,22 +234,28 @@ export default function AIInsightPage() {
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-violet-400" />
               <h3 className="text-sm font-semibold text-white">AI Insights Terkini</h3>
-              <button className="ml-auto flex items-center gap-1 text-[10px] text-white/30 hover:text-white/60 transition-colors">
+              <button
+                onClick={() => setRefreshKey((k) => k + 1)}
+                className="ml-auto flex items-center gap-1 text-[10px] text-white/30 hover:text-white/60 transition-colors"
+              >
                 <RefreshCw className="w-3 h-3" /> Refresh
               </button>
             </div>
 
-            {aiInsightCards.map((card) => (
-              <div key={card.title} className={`rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-colors`}>
+            {insightCards.map((card) => (
+              <div key={card.title} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-colors">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${card.iconBg}`}>
-                    <card.icon className={`w-4 h-4 ${card.iconColor}`} />
+                    {card.isLoading
+                      ? <Loader2 className={`w-4 h-4 ${card.iconColor} animate-spin`} />
+                      : <card.icon className={`w-4 h-4 ${card.iconColor}`} />
+                    }
                   </div>
                   <h4 className="text-sm font-semibold text-white">{card.title}</h4>
                 </div>
                 <div className="space-y-2 mb-3">
-                  {card.items.map((item) => (
-                    <div key={item.label} className="flex items-start justify-between gap-2">
+                  {card.items.map((item, i) => (
+                    <div key={i} className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs text-white/50 truncate">{item.label}</p>
                         <p className="text-[10px] text-white/25">{item.sub}</p>
@@ -237,7 +335,8 @@ export default function AIInsightPage() {
                   <button
                     key={prompt}
                     onClick={() => sendMessage(prompt)}
-                    className="shrink-0 text-[10px] px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.08] transition-all whitespace-nowrap"
+                    disabled={loading}
+                    className="shrink-0 text-[10px] px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.08] transition-all whitespace-nowrap disabled:opacity-40"
                   >
                     {prompt}
                   </button>

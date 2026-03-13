@@ -9,14 +9,24 @@ interface TopbarProps {
 }
 
 export default function Topbar({ title, subtitle }: TopbarProps) {
+  const currentDate = new Date().toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between px-6 py-4 bg-[#0a0f1e]/80 backdrop-blur-xl border-b border-white/5">
-      <div>
-        <h1 className="text-lg font-semibold text-white">{title}</h1>
-        {subtitle && <p className="text-xs text-white/40 mt-0.5">{subtitle}</p>}
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 px-3 sm:px-5 lg:px-6 py-3 sm:py-4 bg-[#0a0f1e]/60 backdrop-blur-xl border-b border-white/5">
+      <div className="min-w-0">
+        <h1 className="text-base sm:text-lg font-semibold text-white truncate">{title}</h1>
+        <div className="flex items-center gap-2 mt-0.5">
+          {subtitle && <p className="hidden sm:block text-xs text-white/40 truncate">{subtitle}</p>}
+          <span className="text-[10px] text-white/30">{currentDate}</span>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="relative hidden md:flex items-center">
+
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="relative hidden lg:flex items-center">
           <Search className="absolute left-3 w-3.5 h-3.5 text-white/30" />
           <input
             className="w-52 h-8 pl-8 pr-3 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 transition-colors"

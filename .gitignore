@@ -21,7 +21,7 @@ venv/
 env/
 
 # Django
-staticfiles/
+staticTiles/
 media/
 db.sqlite3
 

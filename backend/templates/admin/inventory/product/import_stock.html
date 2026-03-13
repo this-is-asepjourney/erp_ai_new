@@ -1,0 +1,223 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Import Stok Produk | Nexus ERP AI{% endblock %}
+
+{% block breadcrumbs %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-file-upload mr-2" style="color:#1a2a6c;"></i>Import Stok Produk</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">Beranda</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'admin:app_list' app_label=opts.app_label %}">Inventory</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'admin:inventory_product_changelist' %}">Produk</a></li>
+                    <li class="breadcrumb-item active">Import Stok</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+
+        <!-- Left: Upload Form -->
+        <div class="col-lg-7">
+
+            <!-- Template Download Card -->
+            <div class="card card-outline card-primary shadow-sm mb-4">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-file-csv mr-2"></i>Langkah 1 — Download Template</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Unduh template CSV, isi dengan data produk Anda, lalu upload di bawah.
+                    </p>
+                    <a href="{% url 'admin:inventory_product_download_template' %}"
+                       class="btn btn-primary btn-lg"
+                       style="background:linear-gradient(135deg,#1a2a6c,#2d4b9e);border:none;border-radius:6px;font-weight:700;letter-spacing:0.3px;">
+                        <i class="fas fa-download mr-2"></i>Download Template CSV
+                    </a>
+                </div>
+            </div>
+
+            <!-- Upload Card -->
+            <div class="card card-outline card-success shadow-sm">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-upload mr-2"></i>Langkah 2 — Upload File CSV</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="import-form">
+                        {% csrf_token %}
+
+                        <!-- Drop Zone -->
+                        <div id="drop-zone"
+                             style="border:2px dashed #1a2a6c;border-radius:10px;padding:40px;text-align:center;
+                                    background:#f5f8ff;cursor:pointer;transition:all 0.25s;position:relative;">
+                            <input type="file" name="csv_file" id="csv_file" accept=".csv" required
+                                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+                            <i class="fas fa-cloud-upload-alt fa-3x mb-3" style="color:#1a2a6c;opacity:0.5;"></i>
+                            <h5 style="color:#1a2a6c;font-weight:700;">Klik atau Drag & Drop file CSV di sini</h5>
+                            <small class="text-muted">Hanya file .CSV yang didukung &bull; Maksimum 5MB</small>
+                        </div>
+
+                        <!-- File Selected Indicator -->
+                        <div id="file-indicator" class="alert alert-success mt-3" style="display:none;">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            File dipilih: <strong id="file-name-text"></strong>
+                        </div>
+
+                        <!-- Info Box -->
+                        <div class="callout callout-warning mt-3">
+                            <h6><i class="fas fa-info-circle mr-1"></i>Informasi Penting</h6>
+                            <p class="mb-0 small">
+                                Jika <strong>SKU sudah ada</strong>, data produk akan <strong>diperbarui</strong>.<br>
+                                Jika <strong>SKU belum ada</strong>, produk baru akan <strong>dibuat otomatis</strong>.
+                            </p>
+                        </div>
+
+                        <!-- Submit -->
+                        <button type="submit" class="btn btn-success btn-block btn-lg mt-3"
+                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32);border:none;border-radius:6px;font-weight:700;letter-spacing:0.3px;">
+                            <i class="fas fa-rocket mr-2"></i>Mulai Import Stok
+                        </button>
+                    </form>
+                </div>
+                <div class="card-footer text-right">
+                    <a href="{% url 'admin:inventory_product_changelist' %}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left mr-1"></i>Kembali ke Daftar Produk
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: Column Guide -->
+        <div class="col-lg-5">
+            <div class="card card-outline card-info shadow-sm">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-table mr-2"></i>Panduan Kolom CSV</h3>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nama Kolom</th>
+                                <th>Tipe</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>sku</code><br><small class="text-muted">Kode unik produk (key update/create)</small></td>
+                                <td><span class="badge badge-secondary">Teks</span></td>
+                                <td><span class="badge badge-danger">WAJIB</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>name</code><br><small class="text-muted">Nama produk</small></td>
+                                <td><span class="badge badge-secondary">Teks</span></td>
+                                <td><span class="badge badge-danger">WAJIB</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>description</code><br><small class="text-muted">Deskripsi produk</small></td>
+                                <td><span class="badge badge-secondary">Teks</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>category_name</code><br><small class="text-muted">Dibuat otomatis jika belum ada</small></td>
+                                <td><span class="badge badge-secondary">Teks</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>supplier_name</code><br><small class="text-muted">Dibuat otomatis jika belum ada</small></td>
+                                <td><span class="badge badge-secondary">Teks</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>unit</code><br><small class="text-muted">pcs, unit, kg, liter, dll</small></td>
+                                <td><span class="badge badge-secondary">Teks</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>cost_price</code><br><small class="text-muted">Harga beli</small></td>
+                                <td><span class="badge badge-secondary">Angka</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>selling_price</code><br><small class="text-muted">Harga jual</small></td>
+                                <td><span class="badge badge-secondary">Angka</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>stock_quantity</code><br><small class="text-muted">Jumlah stok saat ini</small></td>
+                                <td><span class="badge badge-secondary">Bulat</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>minimum_stock</code><br><small class="text-muted">Stok minimum sebelum alert</small></td>
+                                <td><span class="badge badge-secondary">Bulat</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>reorder_quantity</code><br><small class="text-muted">Jumlah reorder</small></td>
+                                <td><span class="badge badge-secondary">Bulat</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>is_active</code><br><small class="text-muted">true / false / 1 / 0</small></td>
+                                <td><span class="badge badge-secondary">Boolean</span></td>
+                                <td><span class="badge badge-info">Opsional</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function() {
+    var input = document.getElementById('csv_file');
+    var dropZone = document.getElementById('drop-zone');
+    var indicator = document.getElementById('file-indicator');
+    var nameText = document.getElementById('file-name-text');
+
+    function showFile(name) {
+        nameText.textContent = name;
+        indicator.style.display = 'block';
+        dropZone.style.borderColor = '#2e7d32';
+        dropZone.style.background = '#e8f5e9';
+    }
+
+    input.addEventListener('change', function() {
+        if (this.files[0]) showFile(this.files[0].name);
+    });
+
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#d4a843';
+        this.style.background = '#fff8e1';
+    });
+    dropZone.addEventListener('dragleave', function() {
+        this.style.borderColor = '#1a2a6c';
+        this.style.background = '#f5f8ff';
+    });
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var file = e.dataTransfer.files[0];
+        if (file) {
+            input.files = e.dataTransfer.files;
+            showFile(file.name);
+        }
+    });
+})();
+</script>
+{% endblock %}

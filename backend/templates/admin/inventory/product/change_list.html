@@ -1,0 +1,20 @@
+{% extends "admin/change_list.html" %}
+{% load i18n static %}
+
+{% block object-tools-items %}
+    <li>
+        <a href="import-stok/"
+           class="btn btn-sm"
+           style="background:linear-gradient(135deg,#1b5e20,#2e7d32);color:white;font-weight:600;border-radius:5px;padding:6px 14px;font-size:12px;border:none;">
+            <i class="fas fa-file-upload mr-1"></i> Import Stok CSV
+        </a>
+    </li>
+    <li>
+        <a href="download-template/"
+           class="btn btn-sm"
+           style="background:linear-gradient(135deg,#0d47a1,#1565c0);color:white;font-weight:600;border-radius:5px;padding:6px 14px;font-size:12px;border:none;">
+            <i class="fas fa-download mr-1"></i> Download Template
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}
